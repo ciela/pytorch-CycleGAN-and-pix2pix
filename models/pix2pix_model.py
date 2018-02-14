@@ -1,6 +1,4 @@
-import numpy as np
 import torch
-import os
 from collections import OrderedDict
 from torch.autograd import Variable
 import util.util as util
@@ -32,7 +30,6 @@ class Pix2PixModel(BaseModel):
 
         if self.isTrain:
             self.fake_AB_pool = ImagePool(opt.pool_size)
-            self.old_lr = opt.lr
             # define loss functions
             self.criterionGAN = networks.GANLoss(use_lsgan=not opt.no_lsgan, tensor=self.Tensor)
             self.criterionL1 = torch.nn.L1Loss()
