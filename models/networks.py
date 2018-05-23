@@ -2,73 +2,11 @@ import torch
 import torch.nn as nn
 from torch.nn import init
 import functools
-from torch.autograd import Variable
 from torch.optim import lr_scheduler
+
 ###############################################################################
-# Functions
+# Helper Functions
 ###############################################################################
-
-
-def weights_init_normal(m):
-    classname = m.__class__.__name__
-    # print(classname)
-    if classname.find('Conv') != -1:
-        init.normal(m.weight.data, 0.0, 0.02)
-    elif classname.find('Linear') != -1:
-        init.normal(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm2d') != -1:
-        init.normal(m.weight.data, 1.0, 0.02)
-        init.constant(m.bias.data, 0.0)
-
-
-def weights_init_xavier(m):
-    classname = m.__class__.__name__
-    # print(classname)
-    if classname.find('Conv') != -1:
-        init.xavier_normal(m.weight.data, gain=0.02)
-    elif classname.find('Linear') != -1:
-        init.xavier_normal(m.weight.data, gain=0.02)
-    elif classname.find('BatchNorm2d') != -1:
-        init.normal(m.weight.data, 1.0, 0.02)
-        init.constant(m.bias.data, 0.0)
-
-
-def weights_init_kaiming(m):
-    classname = m.__class__.__name__
-    # print(classname)
-    if classname.find('Conv') != -1:
-        init.kaiming_normal(m.weight.data, a=0, mode='fan_in')
-    elif classname.find('Linear') != -1:
-        init.kaiming_normal(m.weight.data, a=0, mode='fan_in')
-    elif classname.find('BatchNorm2d') != -1:
-        init.normal(m.weight.data, 1.0, 0.02)
-        init.constant(m.bias.data, 0.0)
-
-
-def weights_init_orthogonal(m):
-    classname = m.__class__.__name__
-    print(classname)
-    if classname.find('Conv') != -1:
-        init.orthogonal(m.weight.data, gain=1)
-    elif classname.find('Linear') != -1:
-        init.orthogonal(m.weight.data, gain=1)
-    elif classname.find('BatchNorm2d') != -1:
-        init.normal(m.weight.data, 1.0, 0.02)
-        init.constant(m.bias.data, 0.0)
-
-
-def init_weights(net, init_type='normal'):
-    print('initialization method [%s]' % init_type)
-    if init_type == 'normal':
-        net.apply(weights_init_normal)
-    elif init_type == 'xavier':
-        net.apply(weights_init_xavier)
-    elif init_type == 'kaiming':
-        net.apply(weights_init_kaiming)
-    elif init_type == 'orthogonal':
-        net.apply(weights_init_orthogonal)
-    else:
-        raise NotImplementedError('initialization method [%s] is not implemented' % init_type)
 
 
 def get_norm_layer(norm_type='instance'):
@@ -98,59 +36,71 @@ def get_scheduler(optimizer, opt):
     return scheduler
 
 
+def init_weights(net, init_type='normal', gain=0.02):
+    def init_func(m):
+        classname = m.__class__.__name__
+        if hasattr(m, 'weight') and (classname.find('Conv') != -1 or classname.find('Linear') != -1):
+            if init_type == 'normal':
+                init.normal_(m.weight.data, 0.0, gain)
+            elif init_type == 'xavier':
+                init.xavier_normal_(m.weight.data, gain=gain)
+            elif init_type == 'kaiming':
+                init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
+            elif init_type == 'orthogonal':
+                init.orthogonal_(m.weight.data, gain=gain)
+            else:
+                raise NotImplementedError('initialization method [%s] is not implemented' % init_type)
+            if hasattr(m, 'bias') and m.bias is not None:
+                init.constant_(m.bias.data, 0.0)
+        elif classname.find('BatchNorm2d') != -1:
+            init.normal_(m.weight.data, 1.0, gain)
+            init.constant_(m.bias.data, 0.0)
+
+    print('initialize network with %s' % init_type)
+    net.apply(init_func)
+
+
+def init_net(net, init_type='normal', gpu_ids=[]):
+    if len(gpu_ids) > 0:
+        assert(torch.cuda.is_available())
+        net.to(gpu_ids[0])
+        net = torch.nn.DataParallel(net, gpu_ids)
+    init_weights(net, init_type)
+    return net
+
+
 def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropout=False, init_type='normal', gpu_ids=[]):
     netG = None
-    use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)
 
-    if use_gpu:
-        assert(torch.cuda.is_available())
-
     if which_model_netG == 'resnet_9blocks':
-        netG = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9, gpu_ids=gpu_ids)
+        netG = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9)
     elif which_model_netG == 'resnet_6blocks':
-        netG = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=6, gpu_ids=gpu_ids)
+        netG = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=6)
     elif which_model_netG == 'unet_128':
-        netG = UnetGenerator(input_nc, output_nc, 7, ngf, norm_layer=norm_layer, use_dropout=use_dropout, gpu_ids=gpu_ids)
+        netG = UnetGenerator(input_nc, output_nc, 7, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
     elif which_model_netG == 'unet_256':
-        netG = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout, gpu_ids=gpu_ids)
+        netG = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % which_model_netG)
-    if len(gpu_ids) > 0:
-        netG.cuda(gpu_ids[0])
-    init_weights(netG, init_type=init_type)
-    return netG
+    return init_net(netG, init_type, gpu_ids)
 
 
 def define_D(input_nc, ndf, which_model_netD,
              n_layers_D=3, norm='batch', use_sigmoid=False, init_type='normal', gpu_ids=[]):
     netD = None
-    use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)
 
-    if use_gpu:
-        assert(torch.cuda.is_available())
     if which_model_netD == 'basic':
-        netD = NLayerDiscriminator(input_nc, ndf, n_layers=3, norm_layer=norm_layer, use_sigmoid=use_sigmoid, gpu_ids=gpu_ids)
+        netD = NLayerDiscriminator(input_nc, ndf, n_layers=3, norm_layer=norm_layer, use_sigmoid=use_sigmoid)
     elif which_model_netD == 'n_layers':
-        netD = NLayerDiscriminator(input_nc, ndf, n_layers_D, norm_layer=norm_layer, use_sigmoid=use_sigmoid, gpu_ids=gpu_ids)
+        netD = NLayerDiscriminator(input_nc, ndf, n_layers_D, norm_layer=norm_layer, use_sigmoid=use_sigmoid)
     elif which_model_netD == 'pixel':
-        netD = PixelDiscriminator(input_nc, ndf, norm_layer=norm_layer, use_sigmoid=use_sigmoid, gpu_ids=gpu_ids)
+        netD = PixelDiscriminator(input_nc, ndf, norm_layer=norm_layer, use_sigmoid=use_sigmoid)
     else:
         raise NotImplementedError('Discriminator model name [%s] is not recognized' %
                                   which_model_netD)
-    if use_gpu:
-        netD.cuda(gpu_ids[0])
-    init_weights(netD, init_type=init_type)
-    return netD
-
-
-def print_network(net):
-    num_params = 0
-    for param in net.parameters():
-        num_params += param.numel()
-    print(net)
-    print('Total number of parameters: %d' % num_params)
+    return init_net(netD, init_type, gpu_ids)
 
 
 ##############################################################################
@@ -163,36 +113,21 @@ def print_network(net):
 # but it abstracts away the need to create the target label tensor
 # that has the same size as the input
 class GANLoss(nn.Module):
-    def __init__(self, use_lsgan=True, target_real_label=1.0, target_fake_label=0.0,
-                 tensor=torch.FloatTensor):
+    def __init__(self, use_lsgan=True, target_real_label=1.0, target_fake_label=0.0):
         super(GANLoss, self).__init__()
-        self.real_label = target_real_label
-        self.fake_label = target_fake_label
-        self.real_label_var = None
-        self.fake_label_var = None
-        self.Tensor = tensor
+        self.register_buffer('real_label', torch.tensor(target_real_label))
+        self.register_buffer('fake_label', torch.tensor(target_fake_label))
         if use_lsgan:
             self.loss = nn.MSELoss()
         else:
             self.loss = nn.BCELoss()
 
     def get_target_tensor(self, input, target_is_real):
-        target_tensor = None
         if target_is_real:
-            create_label = ((self.real_label_var is None) or
-                            (self.real_label_var.numel() != input.numel()))
-            if create_label:
-                real_tensor = self.Tensor(input.size()).fill_(self.real_label)
-                self.real_label_var = Variable(real_tensor, requires_grad=False)
-            target_tensor = self.real_label_var
+            target_tensor = self.real_label
         else:
-            create_label = ((self.fake_label_var is None) or
-                            (self.fake_label_var.numel() != input.numel()))
-            if create_label:
-                fake_tensor = self.Tensor(input.size()).fill_(self.fake_label)
-                self.fake_label_var = Variable(fake_tensor, requires_grad=False)
-            target_tensor = self.fake_label_var
-        return target_tensor
+            target_tensor = self.fake_label
+        return target_tensor.expand_as(input)
 
     def __call__(self, input, target_is_real):
         target_tensor = self.get_target_tensor(input, target_is_real)
@@ -204,13 +139,12 @@ class GANLoss(nn.Module):
 # Code and idea originally from Justin Johnson's architecture.
 # https://github.com/jcjohnson/fast-neural-style/
 class ResnetGenerator(nn.Module):
-    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6, gpu_ids=[], padding_type='reflect'):
+    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6, padding_type='reflect'):
         assert(n_blocks >= 0)
         super(ResnetGenerator, self).__init__()
         self.input_nc = input_nc
         self.output_nc = output_nc
         self.ngf = ngf
-        self.gpu_ids = gpu_ids
         if type(norm_layer) == functools.partial:
             use_bias = norm_layer.func == nn.InstanceNorm2d
         else:
@@ -249,10 +183,7 @@ class ResnetGenerator(nn.Module):
         self.model = nn.Sequential(*model)
 
     def forward(self, input):
-        if self.gpu_ids and isinstance(input.data, torch.cuda.FloatTensor):
-            return nn.parallel.data_parallel(self.model, input, self.gpu_ids)
-        else:
-            return self.model(input)
+        return self.model(input)
 
 
 # Define a resnet block
@@ -304,9 +235,8 @@ class ResnetBlock(nn.Module):
 # at the bottleneck
 class UnetGenerator(nn.Module):
     def __init__(self, input_nc, output_nc, num_downs, ngf=64,
-                 norm_layer=nn.BatchNorm2d, use_dropout=False, gpu_ids=[]):
+                 norm_layer=nn.BatchNorm2d, use_dropout=False):
         super(UnetGenerator, self).__init__()
-        self.gpu_ids = gpu_ids
 
         # construct unet structure
         unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer, innermost=True)
@@ -320,10 +250,7 @@ class UnetGenerator(nn.Module):
         self.model = unet_block
 
     def forward(self, input):
-        if self.gpu_ids and isinstance(input.data, torch.cuda.FloatTensor):
-            return nn.parallel.data_parallel(self.model, input, self.gpu_ids)
-        else:
-            return self.model(input)
+        return self.model(input)
 
 
 # Defines the submodule with skip connection.
@@ -384,9 +311,8 @@ class UnetSkipConnectionBlock(nn.Module):
 
 # Defines the PatchGAN discriminator with the specified arguments.
 class NLayerDiscriminator(nn.Module):
-    def __init__(self, input_nc, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d, use_sigmoid=False, gpu_ids=[]):
+    def __init__(self, input_nc, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d, use_sigmoid=False):
         super(NLayerDiscriminator, self).__init__()
-        self.gpu_ids = gpu_ids
         if type(norm_layer) == functools.partial:
             use_bias = norm_layer.func == nn.InstanceNorm2d
         else:
@@ -428,16 +354,12 @@ class NLayerDiscriminator(nn.Module):
         self.model = nn.Sequential(*sequence)
 
     def forward(self, input):
-        if len(self.gpu_ids) and isinstance(input.data, torch.cuda.FloatTensor):
-            return nn.parallel.data_parallel(self.model, input, self.gpu_ids)
-        else:
-            return self.model(input)
+        return self.model(input)
 
 
 class PixelDiscriminator(nn.Module):
-    def __init__(self, input_nc, ndf=64, norm_layer=nn.BatchNorm2d, use_sigmoid=False, gpu_ids=[]):
+    def __init__(self, input_nc, ndf=64, norm_layer=nn.BatchNorm2d, use_sigmoid=False):
         super(PixelDiscriminator, self).__init__()
-        self.gpu_ids = gpu_ids
         if type(norm_layer) == functools.partial:
             use_bias = norm_layer.func == nn.InstanceNorm2d
         else:
@@ -457,7 +379,4 @@ class PixelDiscriminator(nn.Module):
         self.net = nn.Sequential(*self.net)
 
     def forward(self, input):
-        if len(self.gpu_ids) and isinstance(input.data, torch.cuda.FloatTensor):
-            return nn.parallel.data_parallel(self.net, input, self.gpu_ids)
-        else:
-            return self.net(input)
+        return self.net(input)

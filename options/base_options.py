@@ -27,12 +27,13 @@ class BaseOptions():
         self.parser.add_argument('--model', type=str, default='cycle_gan',
                                  help='chooses which model to use. cycle_gan, pix2pix, test')
         self.parser.add_argument('--which_direction', type=str, default='AtoB', help='AtoB or BtoA')
-        self.parser.add_argument('--nThreads', default=2, type=int, help='# threads for loading data')
+        self.parser.add_argument('--nThreads', default=4, type=int, help='# threads for loading data')
         self.parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
         self.parser.add_argument('--norm', type=str, default='instance', help='instance normalization or batch normalization')
         self.parser.add_argument('--serial_batches', action='store_true', help='if true, takes images in order to make batches, otherwise takes them randomly')
         self.parser.add_argument('--display_winsize', type=int, default=256, help='display window size')
         self.parser.add_argument('--display_id', type=int, default=1, help='window id of the web display')
+        self.parser.add_argument('--display_server', type=str, default="http://localhost", help='visdom server of the web display')
         self.parser.add_argument('--display_port', type=int, default=8097, help='visdom port of the web display')
         self.parser.add_argument('--no_dropout', action='store_true', help='no dropout for the generator')
         self.parser.add_argument('--max_dataset_size', type=int, default=float("inf"),
@@ -40,35 +41,39 @@ class BaseOptions():
         self.parser.add_argument('--resize_or_crop', type=str, default='resize_and_crop', help='scaling and cropping of images at load time [resize_and_crop|crop|scale_width|scale_width_and_crop]')
         self.parser.add_argument('--no_flip', action='store_true', help='if specified, do not flip the images for data augmentation')
         self.parser.add_argument('--init_type', type=str, default='normal', help='network initialization [normal|xavier|kaiming|orthogonal]')
-
+        self.parser.add_argument('--verbose', action='store_true', help='if specified, print more debugging information')
+        self.parser.add_argument('--suffix', default='', type=str, help='customized suffix: opt.name = opt.name + suffix: e.g., {model}_{which_model_netG}_size{loadSize}')
         self.initialized = True
 
     def parse(self):
         if not self.initialized:
             self.initialize()
-        self.opt = self.parser.parse_args()
-        self.opt.isTrain = self.isTrain   # train or test
+        opt = self.parser.parse_args()
+        opt.isTrain = self.isTrain   # train or test
 
-        str_ids = self.opt.gpu_ids.split(',')
-        self.opt.gpu_ids = []
+        str_ids = opt.gpu_ids.split(',')
+        opt.gpu_ids = []
         for str_id in str_ids:
             id = int(str_id)
             if id >= 0:
-                self.opt.gpu_ids.append(id)
+                opt.gpu_ids.append(id)
 
         # set gpu ids
-        if len(self.opt.gpu_ids) > 0:
-            torch.cuda.set_device(self.opt.gpu_ids[0])
+        if len(opt.gpu_ids) > 0:
+            torch.cuda.set_device(opt.gpu_ids[0])
 
-        args = vars(self.opt)
+        args = vars(opt)
 
         print('------------ Options -------------')
         for k, v in sorted(args.items()):
             print('%s: %s' % (str(k), str(v)))
         print('-------------- End ----------------')
 
+        if opt.suffix:
+            suffix = ('_' + opt.suffix.format(**vars(opt))) if opt.suffix != '' else ''
+            opt.name = opt.name + suffix
         # save to the disk
-        expr_dir = os.path.join(self.opt.checkpoints_dir, self.opt.name)
+        expr_dir = os.path.join(opt.checkpoints_dir, opt.name)
         util.mkdirs(expr_dir)
         file_name = os.path.join(expr_dir, 'opt.txt')
         with open(file_name, 'wt') as opt_file:
@@ -76,4 +81,5 @@ class BaseOptions():
             for k, v in sorted(args.items()):
                 opt_file.write('%s: %s\n' % (str(k), str(v)))
             opt_file.write('-------------- End ----------------\n')
+        self.opt = opt
         return self.opt
