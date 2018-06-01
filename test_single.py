@@ -20,11 +20,11 @@ def get_opts():
     opts.norm = 'instance'
     opts.no_dropout = True
     opts.init_type = 'normal'
-    opts.which_epoch = 'latest'
+    opts.which_epoch = '200'
     opts.verbose = False
     opts.which_direction = 'AtoB'
     opts.dataset_mode = 'unaligned'
-    opts.dataroot = '/Users/a12201/src/github.com/ciela/pytorch-CycleGAN-and-pix2pix/data/jsai2018'
+    opts.dataroot = '/Users/a12201/src/github.com/ciela/data/jsai2018'
     opts.loadSize = 286
     opts.fineSize = 256
     opts.batchSize = 1
