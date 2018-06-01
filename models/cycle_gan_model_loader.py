@@ -32,3 +32,6 @@ class CycleGANModelLoader(BaseModel):
     def forward(self, AtoB):
         with torch.no_grad():
             self.fake_img = self.netG_A(self.image) if AtoB else self.netG_B(self.image)
+
+    def get_fake_img(self):
+        return self.fake_img
