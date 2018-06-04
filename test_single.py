@@ -57,5 +57,43 @@ def main():
         util.save_image(im, img_path + '_fake.jpg')
 
 
+import tkinter as tk
+
+
+class CycleGANDemoApp(tk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.pack()
+        self.create_widgets(master)
+        
+    def create_widgets(self, master):
+        # happy -> scary button
+        self.run_AtoB = tk.Button(self, text='Happy -> Scary', command=self.run_AtoB)
+        self.run_AtoB.pack(side='top')
+        # scary -> happy button
+        self.run_BtoA = tk.Button(self, text='Scary -> Happy', command=self.run_BtoA)
+        self.run_BtoA.pack(side='top')
+        # dnd image
+        # TODO
+        # quit button
+        self.quit = tk.Button(self, text="QUIT", command=master.destroy)
+        self.quit.pack(side="bottom")
+
+    def display_img(self):
+        pass
+
+    def run_AtoB(self):
+        print('AtoB')
+
+    def run_BtoA(self):
+        print('BtoA')
+
+def tkinter_test():
+    root = tk.Tk()
+    app = CycleGANDemoApp(master=root)
+    app.mainloop()
+
+
 if __name__ == '__main__':
-    main()
+    tkinter_test()    
+    # main()
