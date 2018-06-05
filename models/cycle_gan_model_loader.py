@@ -26,8 +26,8 @@ class CycleGANModelLoader(BaseModel):
         self.print_networks(opt.verbose)
 
     def set_input(self, input):
-        self.image = input['img'].to(self.device)
-        self.image_paths = input['paths']
+        self.image = input.to(self.device)
+        # self.image_paths = input['paths']
 
     def forward(self, AtoB):
         with torch.no_grad():

@@ -4,6 +4,21 @@ import torch
 import data.unaligned_single_dataset as datausd
 import models.cycle_gan_model_loader as mcycle
 import util.util as util
+from data.base_dataset import BaseDataset, get_transform
+import torchvision.transforms as transforms
+import torchvision.transforms.functional as tvtf
+from PIL import Image
+
+
+def get_transform_wo_norm(opt):
+    transform_list = []
+    osize = [opt.loadSize, opt.loadSize]
+    transform_list.append(transforms.Resize(osize, Image.BICUBIC))
+    transform_list.append(transforms.RandomCrop(opt.fineSize))
+    if opt.isTrain and not opt.no_flip:
+        transform_list.append(transforms.RandomHorizontalFlip())
+    transform_list += [transforms.ToTensor(),]
+    return transforms.Compose(transform_list)
 
 
 def get_opts():
@@ -59,21 +74,25 @@ def main():
 
 class EmotionalStyleTransfer():
     def __init__(self):
+        self.opts = get_opts()
         # model runner
         self.model = mcycle.CycleGANModelLoader()
-        self.model.initialize(get_opts())
+        self.model.initialize(self.opts)
+        self.transform = get_transform(self.opts)
+        self.transform_wo_norm = get_transform_wo_norm(self.opts)
         # dataset TODO: methodize
-        dataset = datausd.UnalignedSingleDataset()
-        dataset.initialize(opts)
-        self.dataloader = torch.utils.data.DataLoader(
-            dataset,
-            batch_size=opts.batchSize,
-            shuffle=not opts.serial_batches,
-            num_workers=int(opts.nThreads))
+        # dataset = datausd.UnalignedSingleDataset()
+        # dataset.initialize(opts)
+        # self.dataloader = torch.utils.data.DataLoader(
+        #     dataset,
+        #     batch_size=opts.batchSize,
+        #     shuffle=not opts.serial_batches,
+        #     num_workers=int(opts.nThreads))
     
     def set_image(self, image):
-        # util.im2tensor 的な何か dataloader から抜いてくる
-        self.model.set_input(image)  # TODO: tensor of image
+        img = self.transform(image)
+        self.model.set_input(img)
+        return tvtf.to_pil_image(self.transform_wo_norm(image))
 
     def run(self, AtoB):
         self.model.forward(AtoB)
@@ -90,13 +109,14 @@ class CycleGANDemoApp(tk.Frame):
         super().__init__(master)
         self.pack()
         self.create_widgets(master)
+        self.transfer = EmotionalStyleTransfer()
         
     def create_widgets(self, master):
         filename = '/Users/a12201/data/bam/bam_h2s_cyclegan2/testA/355281.jpg'
         # Image
         pil_image = PIL.Image.open(filename).convert('RGB')
         self.photo_image = PIL.ImageTk.PhotoImage(pil_image)
-        self.img_label = tk.Label(self, image=self.photo_image, height=500)
+        self.img_label = tk.Label(self, image=self.photo_image, width=256, height=256)
         self.img_label.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
         # happy -> scary button
         self.run_AtoB = tk.Button(self, text='Happy -> Scary', command=self.run_AtoB)
@@ -117,37 +137,29 @@ class CycleGANDemoApp(tk.Frame):
             filetypes = (("jpeg files", "*.jpg"), ("all files", "*.*")))
         print(selected_file)
         pil_image = PIL.Image.open(selected_file).convert('RGB')
-        self.photo_image = PIL.ImageTk.PhotoImage(pil_image)
+        data = self.transfer.set_image(pil_image)
+        self.photo_image = PIL.ImageTk.PhotoImage(data)
         self.img_label.configure(image=self.photo_image)
-
-    def print_entry(self, ev):
-        print(ev)
-        print(self.contents.get())
-
-    def display_img(self, ev):
-        print(ev)
-        filename = self.contents.get()
-        pil_image = PIL.Image.open(filename).convert('RGB')
-        self.photo_image = PIL.ImageTk.PhotoImage(pil_image)
-        self.img_label.configure(image=self.photo_image)
-        # self.canvas = tk.Canvas(self, width=500, height=500)
-        # self.canvas.create_image(0, 0, image=self.photo_image, anchor=tk.NW)
-        # self.canvas.pack(side='top')
 
     def run_AtoB(self):
         print('AtoB')
         # TODO: get image from filehandler
+        self.transfer.run(True)
+        self.img_label.configure(image=self.photo_image)
+
 
     def run_BtoA(self):
         print('BtoA')
         # TODO: get image from filehandler
+        self.transfer.run(False)
+        self.img_label.configure(image=self.photo_image)
 
 
 def tkinter_test():
     root = tk.Tk()
     root.title('Emotional Style Stransfer Demo App')
     # root.size(1000, 800)
-    root.geometry('1000x600')
+    root.geometry('1000x750')
     app = CycleGANDemoApp(master=root)
     app.mainloop()
 
