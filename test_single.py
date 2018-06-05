@@ -81,6 +81,7 @@ class EmotionalStyleTransfer():
 
 
 import tkinter as tk
+import tkinter.filedialog as tkfd
 import PIL.ImageTk, PIL.Image
 
 
@@ -91,29 +92,33 @@ class CycleGANDemoApp(tk.Frame):
         self.create_widgets(master)
         
     def create_widgets(self, master):
-        # happy -> scary button
-        self.run_AtoB = tk.Button(self, text='Happy -> Scary', command=self.run_AtoB)
-        self.run_AtoB.pack(side='left')
-        # scary -> happy button
-        self.run_BtoA = tk.Button(self, text='Scary -> Happy', command=self.run_BtoA)
-        self.run_BtoA.pack(side='right')
-        # dnd image
-        # TODO
-        # quit button
-        self.quit = tk.Button(self, text="QUIT", command=master.destroy)
-        self.quit.pack(side="bottom", expand=1)
-        # Test bindings
         filename = '/Users/a12201/data/bam/bam_h2s_cyclegan2/testA/355281.jpg'
-        self.contents = tk.StringVar()
-        self.contents.set(filename)
-        self.entry = tk.Entry(self, textvariable=self.contents)
-        self.entry.pack(side='top')
-        self.entry.bind('<Key-Return>', self.display_img)
         # Image
         pil_image = PIL.Image.open(filename).convert('RGB')
         self.photo_image = PIL.ImageTk.PhotoImage(pil_image)
-        self.img_label = tk.Label(self, image=self.photo_image)
-        self.img_label.pack(side='top')
+        self.img_label = tk.Label(self, image=self.photo_image, height=500)
+        self.img_label.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
+        # happy -> scary button
+        self.run_AtoB = tk.Button(self, text='Happy -> Scary', command=self.run_AtoB)
+        self.run_AtoB.grid(row=1, column=0, padx=5, pady=5)
+        # scary -> happy button
+        self.run_BtoA = tk.Button(self, text='Scary -> Happy', command=self.run_BtoA)
+        self.run_BtoA.grid(row=1, column=1, padx=5, pady=5)
+        # file dialog
+        self.open_file = tk.Button(self, text='Open File', command=self.select_image)
+        self.open_file.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+        # quit button
+        self.quit = tk.Button(self, text="QUIT", command=master.destroy)
+        self.quit.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+
+    def select_image(self):
+        selected_file = tkfd.askopenfilename(
+            initialdir = "/Users/a12201/data", title= "Select file", 
+            filetypes = (("jpeg files", "*.jpg"), ("all files", "*.*")))
+        print(selected_file)
+        pil_image = PIL.Image.open(selected_file).convert('RGB')
+        self.photo_image = PIL.ImageTk.PhotoImage(pil_image)
+        self.img_label.configure(image=self.photo_image)
 
     def print_entry(self, ev):
         print(ev)
@@ -142,7 +147,7 @@ def tkinter_test():
     root = tk.Tk()
     root.title('Emotional Style Stransfer Demo App')
     # root.size(1000, 800)
-    root.geometry('1000x1000')
+    root.geometry('1000x600')
     app = CycleGANDemoApp(master=root)
     app.mainloop()
 
