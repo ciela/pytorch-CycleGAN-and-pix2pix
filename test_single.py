@@ -57,7 +57,31 @@ def main():
         util.save_image(im, img_path + '_fake.jpg')
 
 
+class EmotionalStyleTransfer():
+    def __init__(self):
+        # model runner
+        self.model = mcycle.CycleGANModelLoader()
+        self.model.initialize(get_opts())
+        # dataset TODO: methodize
+        dataset = datausd.UnalignedSingleDataset()
+        dataset.initialize(opts)
+        self.dataloader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=opts.batchSize,
+            shuffle=not opts.serial_batches,
+            num_workers=int(opts.nThreads))
+    
+    def set_image(self, image):
+        # util.im2tensor 的な何か dataloader から抜いてくる
+        self.model.set_input(image)  # TODO: tensor of image
+
+    def run(self, AtoB):
+        self.model.forward(AtoB)
+        return util.tensor2im(self.model.get_fake_img())
+
+
 import tkinter as tk
+import PIL.ImageTk, PIL.Image
 
 
 class CycleGANDemoApp(tk.Frame):
@@ -69,27 +93,56 @@ class CycleGANDemoApp(tk.Frame):
     def create_widgets(self, master):
         # happy -> scary button
         self.run_AtoB = tk.Button(self, text='Happy -> Scary', command=self.run_AtoB)
-        self.run_AtoB.pack(side='top')
+        self.run_AtoB.pack(side='left')
         # scary -> happy button
         self.run_BtoA = tk.Button(self, text='Scary -> Happy', command=self.run_BtoA)
-        self.run_BtoA.pack(side='top')
+        self.run_BtoA.pack(side='right')
         # dnd image
         # TODO
         # quit button
         self.quit = tk.Button(self, text="QUIT", command=master.destroy)
-        self.quit.pack(side="bottom")
+        self.quit.pack(side="bottom", expand=1)
+        # Test bindings
+        filename = '/Users/a12201/data/bam/bam_h2s_cyclegan2/testA/355281.jpg'
+        self.contents = tk.StringVar()
+        self.contents.set(filename)
+        self.entry = tk.Entry(self, textvariable=self.contents)
+        self.entry.pack(side='top')
+        self.entry.bind('<Key-Return>', self.display_img)
+        # Image
+        pil_image = PIL.Image.open(filename).convert('RGB')
+        self.photo_image = PIL.ImageTk.PhotoImage(pil_image)
+        self.img_label = tk.Label(self, image=self.photo_image)
+        self.img_label.pack(side='top')
 
-    def display_img(self):
-        pass
+    def print_entry(self, ev):
+        print(ev)
+        print(self.contents.get())
+
+    def display_img(self, ev):
+        print(ev)
+        filename = self.contents.get()
+        pil_image = PIL.Image.open(filename).convert('RGB')
+        self.photo_image = PIL.ImageTk.PhotoImage(pil_image)
+        self.img_label.configure(image=self.photo_image)
+        # self.canvas = tk.Canvas(self, width=500, height=500)
+        # self.canvas.create_image(0, 0, image=self.photo_image, anchor=tk.NW)
+        # self.canvas.pack(side='top')
 
     def run_AtoB(self):
         print('AtoB')
+        # TODO: get image from filehandler
 
     def run_BtoA(self):
         print('BtoA')
+        # TODO: get image from filehandler
+
 
 def tkinter_test():
     root = tk.Tk()
+    root.title('Emotional Style Stransfer Demo App')
+    # root.size(1000, 800)
+    root.geometry('1000x1000')
     app = CycleGANDemoApp(master=root)
     app.mainloop()
 
