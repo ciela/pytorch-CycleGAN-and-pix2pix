@@ -89,7 +89,7 @@ class EmotionalStyleTransfer():
 
     def run(self, AtoB):
         self.model.forward(AtoB)
-        return util.tensor2im(self.model.get_fake_img())
+        return Image.fromarray(util.tensor2im(self.model.get_fake_img()))
 
 
 import tkinter as tk
@@ -136,14 +136,14 @@ class CycleGANDemoApp(tk.Frame):
 
     def run_AtoB(self):
         print('AtoB')
-        # TODO: get image from filehandler
-        self.transfer.run(True)
+        pil_image = self.transfer.run(True)
+        self.photo_image = PIL.ImageTk.PhotoImage(pil_image)
         self.img_label.configure(image=self.photo_image)
 
     def run_BtoA(self):
         print('BtoA')
-        # TODO: get image from filehandler
-        self.transfer.run(False)
+        pil_image = self.transfer.run(False)
+        self.photo_image = PIL.ImageTk.PhotoImage(pil_image)
         self.img_label.configure(image=self.photo_image)
 
 
