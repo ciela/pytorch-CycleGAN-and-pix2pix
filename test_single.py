@@ -151,7 +151,7 @@ def tkinter_test():
     root = tk.Tk()
     root.title('Emotional Style Stransfer Demo App')
     # root.size(1000, 800)
-    root.geometry('1000x750')
+    root.geometry('500x500')
     app = CycleGANDemoApp(master=root)
     app.mainloop()
 
