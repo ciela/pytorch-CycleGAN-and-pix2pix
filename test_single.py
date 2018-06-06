@@ -39,7 +39,7 @@ def get_opts():
     opts.verbose = False
     opts.which_direction = 'AtoB'
     opts.dataset_mode = 'unaligned'
-    opts.dataroot = '/Users/a12201/src/github.com/ciela/data/jsai2018'
+    opts.dataroot = '/Users/a12201/data/jsai2018'
     opts.loadSize = 286
     opts.fineSize = 256
     opts.batchSize = 1
@@ -63,6 +63,7 @@ def main():
             num_workers=int(opts.nThreads))
 
     for i, data in enumerate(dataloader):
+        print(data['img'].shape)
         model.set_input(data)  # いったん AtoB
         model.forward(True)  # いったん AtoB
         img_path = model.get_image_paths()[0]
@@ -74,24 +75,16 @@ def main():
 
 class EmotionalStyleTransfer():
     def __init__(self):
-        self.opts = get_opts()
+        opts = get_opts()
         # model runner
         self.model = mcycle.CycleGANModelLoader()
-        self.model.initialize(self.opts)
-        self.transform = get_transform(self.opts)
-        self.transform_wo_norm = get_transform_wo_norm(self.opts)
-        # dataset TODO: methodize
-        # dataset = datausd.UnalignedSingleDataset()
-        # dataset.initialize(opts)
-        # self.dataloader = torch.utils.data.DataLoader(
-        #     dataset,
-        #     batch_size=opts.batchSize,
-        #     shuffle=not opts.serial_batches,
-        #     num_workers=int(opts.nThreads))
+        self.model.initialize(opts)
+        self.transform = get_transform(opts)
+        self.transform_wo_norm = get_transform_wo_norm(opts)  # for display
     
-    def set_image(self, image):
-        img = self.transform(image)
-        self.model.set_input(img)
+    def set_image(self, image, path):
+        inputs = {'img': self.transform(image).unsqueeze(0), 'paths': path}
+        self.model.set_input(inputs)
         return tvtf.to_pil_image(self.transform_wo_norm(image))
 
     def run(self, AtoB):
@@ -137,7 +130,7 @@ class CycleGANDemoApp(tk.Frame):
             filetypes = (("jpeg files", "*.jpg"), ("all files", "*.*")))
         print(selected_file)
         pil_image = PIL.Image.open(selected_file).convert('RGB')
-        data = self.transfer.set_image(pil_image)
+        data = self.transfer.set_image(pil_image, selected_file)
         self.photo_image = PIL.ImageTk.PhotoImage(data)
         self.img_label.configure(image=self.photo_image)
 
@@ -146,7 +139,6 @@ class CycleGANDemoApp(tk.Frame):
         # TODO: get image from filehandler
         self.transfer.run(True)
         self.img_label.configure(image=self.photo_image)
-
 
     def run_BtoA(self):
         print('BtoA')
