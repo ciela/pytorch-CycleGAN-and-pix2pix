@@ -110,27 +110,30 @@ class CycleGANDemoApp(tk.Frame):
         pil_image = PIL.Image.open(filename).convert('RGB')
         self.photo_image = PIL.ImageTk.PhotoImage(pil_image)
         self.img_label = tk.Label(self, image=self.photo_image, width=500, height=500)
-        self.img_label.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
+        self.img_label.grid(row=0, column=0, columnspan=3, padx=5, pady=5)
         # happy -> scary button
         self.run_AtoB = tk.Button(self, text='Happy -> Scary', command=self.run_AtoB)
         self.run_AtoB.grid(row=1, column=0, padx=5, pady=5)
+        # back to orig
+        self.back_orig = tk.Button(self, text='Back', command=self.original)
+        self.back_orig.grid(row=1, column=1, padx=5, pady=5)
         # scary -> happy button
         self.run_BtoA = tk.Button(self, text='Scary -> Happy', command=self.run_BtoA)
-        self.run_BtoA.grid(row=1, column=1, padx=5, pady=5)
+        self.run_BtoA.grid(row=1, column=2, padx=5, pady=5)
         # file dialog
         self.open_file = tk.Button(self, text='Open File', command=self.select_image)
-        self.open_file.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+        self.open_file.grid(row=2, column=0, columnspan=3, padx=5, pady=5)
         # quit button
         self.quit = tk.Button(self, text="QUIT", command=master.destroy)
-        self.quit.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+        self.quit.grid(row=3, column=0, columnspan=3, padx=5, pady=5)
 
     def select_image(self):
         selected_file = tkfd.askopenfilename(
-            initialdir = "/Users/a12201/data", title= "Select file", 
+            initialdir = "/Users/a12201/data/jsai2018", title= "Select file", 
             filetypes = (("jpeg files", "*.jpg"), ("all files", "*.*")))
         print(selected_file)
-        pil_image = PIL.Image.open(selected_file).convert('RGB')
-        data = self.transfer.set_image(pil_image, selected_file)
+        self.original = PIL.Image.open(selected_file).convert('RGB')
+        data = self.transfer.set_image(self.original, selected_file)
         self.photo_image = PIL.ImageTk.PhotoImage(data)
         self.img_label.configure(image=self.photo_image)
 
@@ -144,6 +147,11 @@ class CycleGANDemoApp(tk.Frame):
         print('BtoA')
         pil_image = self.transfer.run(False)
         self.photo_image = PIL.ImageTk.PhotoImage(pil_image.resize((500, 500)))
+        self.img_label.configure(image=self.photo_image)
+
+    def original(self):
+        print('Original')
+        self.photo_image = PIL.ImageTk.PhotoImage(self.original.resize((500, 500)))
         self.img_label.configure(image=self.photo_image)
 
 
