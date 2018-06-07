@@ -85,7 +85,7 @@ class EmotionalStyleTransfer():
     def set_image(self, image, path):
         inputs = {'img': self.transform(image).unsqueeze(0), 'paths': path}
         self.model.set_input(inputs)
-        return tvtf.to_pil_image(self.transform_wo_norm(image))
+        return image.resize((500, 500))
 
     def run(self, AtoB):
         self.model.forward(AtoB)
@@ -109,7 +109,7 @@ class CycleGANDemoApp(tk.Frame):
         # Image
         pil_image = PIL.Image.open(filename).convert('RGB')
         self.photo_image = PIL.ImageTk.PhotoImage(pil_image)
-        self.img_label = tk.Label(self, image=self.photo_image, width=256, height=256)
+        self.img_label = tk.Label(self, image=self.photo_image, width=500, height=500)
         self.img_label.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
         # happy -> scary button
         self.run_AtoB = tk.Button(self, text='Happy -> Scary', command=self.run_AtoB)
@@ -137,13 +137,13 @@ class CycleGANDemoApp(tk.Frame):
     def run_AtoB(self):
         print('AtoB')
         pil_image = self.transfer.run(True)
-        self.photo_image = PIL.ImageTk.PhotoImage(pil_image)
+        self.photo_image = PIL.ImageTk.PhotoImage(pil_image.resize((500, 500)))
         self.img_label.configure(image=self.photo_image)
 
     def run_BtoA(self):
         print('BtoA')
         pil_image = self.transfer.run(False)
-        self.photo_image = PIL.ImageTk.PhotoImage(pil_image)
+        self.photo_image = PIL.ImageTk.PhotoImage(pil_image.resize((500, 500)))
         self.img_label.configure(image=self.photo_image)
 
 
@@ -151,7 +151,7 @@ def tkinter_test():
     root = tk.Tk()
     root.title('Emotional Style Stransfer Demo App')
     # root.size(1000, 800)
-    root.geometry('500x500')
+    root.geometry('700x700')
     app = CycleGANDemoApp(master=root)
     app.mainloop()
 
